@@ -1,0 +1,55 @@
+name: Publish project files
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-project.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild and verify project archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat \
+            .github/bootstrap/project.part01.b64 \
+            .github/bootstrap/project.part02.b64 \
+            .github/bootstrap/project.part03.b64 \
+            .github/bootstrap/project.part04a.b64 \
+            .github/bootstrap/project.part04b.b64 \
+            .github/bootstrap/project.part05a.b64 \
+            .github/bootstrap/project.part05b.b64 \
+            | base64 --decode > /tmp/project.tar.xz
+          echo "327a4a9d79485392bf6bff01436f68f3eb91151fbe4d07d970e6a83a438b68b8  /tmp/project.tar.xz" | sha256sum --check --strict
+
+      - name: Publish extracted project directly to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          tar -xJf /tmp/project.tar.xz -C .
+
+          if find . -type f -name '*.zip' -print -quit | grep -q .; then
+            echo 'A ZIP file was found after extraction.' >&2
+            exit 1
+          fi
+
+          python scripts/validar_anonimizacao.py
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: publish Power Apps demand management project'
+          git push origin HEAD:main
