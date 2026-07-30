@@ -9,13 +9,16 @@ on:
   issues:
     types:
       - opened
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   publish:
-    if: github.event_name == 'push' || github.event.issue.title == 'Publish project bootstrap'
+    if: github.event_name != 'issues' || github.event.issue.title == 'Publish project bootstrap'
     runs-on: ubuntu-latest
     steps:
       - name: Check out main
